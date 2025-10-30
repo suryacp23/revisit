@@ -1,30 +1,30 @@
-// router.get("/all-problems");
-// router.post("/problem");
-// router.put("/:id/review");
-// router.get("/today-reviews");
-
 import Problem from "../model/ProblemModel.js";
 
+/**
+ * Add a new problem for the logged-in user
+ */
 export const addProblem = async (req, res) => {
   try {
+    const userId = req.user._id; // 👈 user injected by middleware
     const { link } = req.body;
 
     if (!link) {
       return res.status(400).json({ message: "Link is required" });
     }
 
-    // Optional: check manually before insert (faster fail)
-    const existing = await Problem.findOne({ link });
+    // Check if user already added the problem
+    const existing = await Problem.findOne({ userId, link });
     if (existing) {
-      return res.status(409).json({ message: "Problem already exists" });
+      return res
+        .status(409)
+        .json({ message: "Problem already exists for this user" });
     }
 
-    const problem = new Problem({ link });
+    const problem = new Problem({ userId, link });
     await problem.save();
 
     res.status(201).json(problem);
   } catch (error) {
-    // Handle duplicate key errors (just in case)
     if (error.code === 11000) {
       return res.status(409).json({ message: "Problem already exists" });
     }
@@ -32,34 +32,43 @@ export const addProblem = async (req, res) => {
     res.status(500).json({ message: "Failed to add problem" });
   }
 };
+
+/**
+ * Get all problems for logged-in user
+ */
 export const getAllProblems = async (req, res) => {
   try {
-    const problems = await Problem.find().sort({
+    const userId = req.user._id;
+    const problems = await Problem.find({ userId }).sort({
       lastCompletedDate: -1,
       createdAt: -1,
     });
 
     res.status(200).json(problems);
   } catch (error) {
-    console.log(error);
+    console.error(error);
+    res.status(500).json({ message: "Error fetching problems" });
   }
 };
+
+/**
+ * Review a problem and update its next review date
+ */
 export const reviewProblem = async (req, res) => {
   try {
+    const userId = req.user._id;
     const { id } = req.params;
 
-    // Find the problem
-    const problem = await Problem.findById(id);
+    const problem = await Problem.findOne({ _id: id, userId }); // 👈 scoped to user
     if (!problem) {
       return res.status(404).json({ message: "Problem not found" });
     }
 
-    // Update fields
     const today = new Date();
     problem.lastCompletedDate = today;
     problem.successfullReview += 1;
 
-    // Calculate next review days
+    // Calculate next review date dynamically
     let daysToAdd = 7;
     if (problem.successfullReview === 3 || problem.successfullReview === 4) {
       daysToAdd = 10;
@@ -71,7 +80,6 @@ export const reviewProblem = async (req, res) => {
       today.getTime() + daysToAdd * 24 * 60 * 60 * 1000
     );
 
-    // Save updated document
     await problem.save();
 
     res.json({
@@ -83,21 +91,26 @@ export const reviewProblem = async (req, res) => {
     res.status(500).json({ message: "Error updating problem review" });
   }
 };
+
+/**
+ * Get all problems due for review today (for logged-in user)
+ */
 export const todayProblems = async (req, res) => {
   try {
+    const userId = req.user._id;
     const start = new Date();
-    // midnight (start of today)
     start.setHours(0, 0, 0, 0);
-
     const end = new Date();
-    // end of today
     end.setHours(23, 59, 59, 999);
 
     const problems = await Problem.find({
+      userId,
       nextReviewDate: { $gte: start, $lte: end },
     });
+
     res.json(problems);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: err.message });
   }
 };

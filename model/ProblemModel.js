@@ -2,6 +2,11 @@ import mongoose from "mongoose";
 
 const problemSchema = new mongoose.Schema(
   {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId, // reference to User model
+      ref: "User",
+      required: true, // ✅ ensures every problem belongs to a user
+    },
     link: {
       type: String,
       required: true,
