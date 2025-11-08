@@ -103,9 +103,10 @@ export const todayProblems = async (req, res) => {
     const end = new Date();
     end.setHours(23, 59, 59, 999);
 
+    // ✅ Include both today’s and overdue problems
     const problems = await Problem.find({
       userId,
-      nextReviewDate: { $gte: start, $lte: end },
+      nextReviewDate: { $lte: end }, // anything due before or on today
     });
 
     res.json(problems);
