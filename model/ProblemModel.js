@@ -10,7 +10,6 @@ const problemSchema = new mongoose.Schema(
     link: {
       type: String,
       required: true,
-      unique: true, // 👈 makes it unique at DB level
       trim: true,
     },
     lastCompletedDate: {
