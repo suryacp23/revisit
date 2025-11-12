@@ -26,6 +26,7 @@ export const addProblem = async (req, res) => {
     res.status(201).json(problem);
   } catch (error) {
     if (error.code === 11000) {
+      console.log(error);
       return res.status(409).json({ message: "Problem already exists" });
     }
     console.error(error);
